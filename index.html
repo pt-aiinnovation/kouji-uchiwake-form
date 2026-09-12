@@ -1,0 +1,474 @@
+<title>工事内訳フォーム</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap">
+<style>
+  :root {
+    --ink: #22262E;
+    --ink-soft: #5B6270;
+    --paper: #FFFFFF;
+    --surface: #F4F2EE;
+    --surface-line: #E4E0D8;
+    --accent: #C97A16;
+    --accent-line: #B5680A;
+    --accent-bg: #FBEBD3;
+    --navy: #2B3A55;
+    --navy-bg: #EAEEF5;
+    --danger: #B23B30;
+    --danger-bg: #FBEAE8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #EDEAE2;
+      --ink-soft: #A9AFBC;
+      --paper: #1C1E23;
+      --surface: #26282E;
+      --surface-line: #383B42;
+      --accent: #F0AE52;
+      --accent-line: #F0AE52;
+      --accent-bg: #3A2E17;
+      --navy: #9DB2D6;
+      --navy-bg: #202838;
+      --danger: #E3897E;
+      --danger-bg: #3A2320;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #EDEAE2;
+    --ink-soft: #A9AFBC;
+    --paper: #1C1E23;
+    --surface: #26282E;
+    --surface-line: #383B42;
+    --accent: #F0AE52;
+    --accent-line: #F0AE52;
+    --accent-bg: #3A2E17;
+    --navy: #9DB2D6;
+    --navy-bg: #202838;
+    --danger: #E3897E;
+    --danger-bg: #3A2320;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-size: 17px;
+    line-height: 1.6;
+  }
+  .page {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px 16px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 4px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--accent-line);
+    text-transform: uppercase;
+  }
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 900;
+    text-wrap: balance;
+  }
+  .lede {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--ink-soft);
+    line-height: 1.75;
+  }
+
+  label {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .req::after { content: " *必須"; font-weight: 700; color: var(--accent-line); }
+
+  input[type="text"], input[type="number"], input[type="date"] {
+    width: 100%;
+    font-family: inherit;
+    font-size: 18px;
+    padding: 13px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--surface-line);
+    background: var(--paper);
+    color: var(--ink);
+  }
+  input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  input[type="number"] { font-variant-numeric: tabular-nums; }
+
+  .field { display: flex; flex-direction: column; }
+  .field + .field { margin-top: 14px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .supplier-card {
+    background: var(--navy-bg);
+    border: 1.5px solid var(--surface-line);
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .sites { display: flex; flex-direction: column; gap: 14px; }
+  .site-card {
+    background: var(--surface);
+    border: 1.5px solid var(--surface-line);
+    border-radius: 14px;
+    padding: 16px;
+    position: relative;
+  }
+  .site-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .site-card-head .site-num {
+    font-weight: 700;
+    font-size: 14.5px;
+    color: var(--ink-soft);
+  }
+  .head-btns { display: flex; gap: 4px; }
+  .remove-btn {
+    border: none;
+    background: none;
+    color: var(--danger);
+    font-size: 14px;
+    font-weight: 700;
+    padding: 6px 8px;
+    cursor: pointer;
+    border-radius: 8px;
+  }
+  .remove-btn:hover { background: var(--danger-bg); }
+  .remove-btn[data-action="dup"] { color: var(--navy); }
+  .remove-btn[data-action="dup"]:hover { background: var(--navy-bg); }
+
+  .add-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: 2px dashed var(--surface-line);
+    background: none;
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 15.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .add-btn:hover { border-color: var(--accent); color: var(--accent-line); }
+
+  .preview {
+    background: var(--surface);
+    border: 1.5px solid var(--surface-line);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .preview h2 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink-soft);
+  }
+  .preview pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: "Zen Kaku Gothic New", sans-serif;
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: var(--ink);
+  }
+
+  .actionbar {
+    /* ★入力中に画面の大部分を占領しないよう、常時固定表示（sticky）はやめ、
+       フォームの一番下までスクロールした時だけ現れる通常配置にした（2026-09-12）。 */
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 6px 0 4px;
+  }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    border-radius: 12px;
+    border: none;
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); color: #1A1200; }
+  .btn-primary:active { background: var(--accent-line); }
+  .btn-navy { background: var(--navy); color: #F5F7FB; }
+  .btn-navy:active { filter: brightness(0.92); }
+  .btn-secondary { background: var(--surface); color: var(--ink); border: 1.5px solid var(--surface-line); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hint { font-size: 12.5px; color: var(--ink-soft); text-align: center; margin: 0; }
+  .toast {
+    text-align: center;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--accent-line);
+    min-height: 18px;
+  }
+</style>
+
+<div class="page">
+  <header>
+    <span class="eyebrow">川洋建装様 工事内訳フォーム</span>
+    <h1>スマホでかんたん入力</h1>
+    <p class="lede">
+      工事ごとに「お客様のお名前」と「金額」を入力し、最後にLINEかメールで
+      経理担当者へ送ってください。パソコンは不要です。
+    </p>
+  </header>
+
+  <div class="supplier-card">
+    <div class="field">
+      <label class="req" for="supplier">あなたの会社名・お名前</label>
+      <input type="text" id="supplier" placeholder="例）今井塗装" autocomplete="off">
+    </div>
+  </div>
+
+  <div id="sites" class="sites"></div>
+
+  <button type="button" class="add-btn" id="addSite">＋ 現場をもう1件追加</button>
+
+  <div class="preview">
+    <h2>送信内容のプレビュー</h2>
+    <pre id="previewText"></pre>
+  </div>
+
+  <div class="actionbar">
+    <p class="toast" id="toast"></p>
+    <a href="#" class="btn btn-primary" id="mailBtn" target="_top">メールで送る</a>
+    <a href="#" class="btn btn-navy" id="lineBtn" target="_blank" rel="noopener">LINEで送る</a>
+    <button type="button" class="btn btn-secondary" id="copyBtn">文章をコピーする</button>
+    <p class="hint">送信後は、経理担当者が内容を確認して処理します。</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var sitesEl = document.getElementById('sites');
+  var supplierEl = document.getElementById('supplier');
+  var previewEl = document.getElementById('previewText');
+  var toastEl = document.getElementById('toast');
+  var siteCount = 0;
+
+  function makeSite(initial, afterEl) {
+    siteCount += 1;
+    var n = siteCount;
+    var card = document.createElement('div');
+    card.className = 'site-card';
+    card.dataset.n = n;
+    card.innerHTML =
+      '<div class="site-card-head"><span class="site-num">現場 ' + n + '</span>' +
+      '<span class="head-btns">' +
+      '<button type="button" class="remove-btn" data-action="dup">複製</button>' +
+      '<button type="button" class="remove-btn" data-action="remove">削除</button>' +
+      '</span></div>' +
+      '<div class="field"><label class="req">お客様のお名前（フルネーム）</label>' +
+      '<input type="text" data-field="customer" placeholder="例）山田太郎" autocomplete="off"></div>' +
+      '<div class="field"><label class="req">金額（税抜・円）</label>' +
+      '<input type="number" inputmode="numeric" data-field="amount" placeholder="例）116200"></div>' +
+      '<div class="row2">' +
+      '<div class="field"><label>市区町村（分かれば）</label>' +
+      '<input type="text" data-field="city" placeholder="例）弥富市" autocomplete="off"></div>' +
+      '<div class="field"><label>工事内容（分かれば）</label>' +
+      '<input type="text" data-field="work" placeholder="例）外壁塗装" autocomplete="off"></div>' +
+      '</div>' +
+      '<div class="field"><label>日付（分かれば）</label>' +
+      '<input type="date" data-field="date"></div>';
+
+    if (afterEl) {
+      sitesEl.insertBefore(card, afterEl.nextSibling);   // nextSiblingがnullでも末尾に入る
+    } else {
+      sitesEl.appendChild(card);
+    }
+
+    if (initial) {
+      ['customer', 'city', 'work', 'date'].forEach(function (f) {
+        if (initial[f]) card.querySelector('[data-field="' + f + '"]').value = initial[f];
+      });
+      // 金額はコピーせず空にする（同じ現場でも日によって金額が違うことが多いため）。
+    }
+
+    card.querySelector('[data-action="remove"]').addEventListener('click', function () {
+      card.remove();
+      renumber();
+      updatePreview();
+    });
+    card.querySelector('[data-action="dup"]').addEventListener('click', function () {
+      var get = function (f) { return card.querySelector('[data-field="' + f + '"]').value; };
+      var clone = makeSite({ customer: get('customer'), city: get('city'), work: get('work') }, card);
+      renumber();
+      updatePreview();
+      clone.querySelector('[data-field="date"]').focus();
+    });
+    card.querySelectorAll('input').forEach(function (inp) {
+      inp.addEventListener('input', updatePreview);
+    });
+    return card;
+  }
+
+  function renumber() {
+    var cards = sitesEl.querySelectorAll('.site-card');
+    cards.forEach(function (c, i) {
+      c.querySelector('.site-num').textContent = '現場 ' + (i + 1);
+    });
+  }
+
+  function buildText() {
+    var lines = ['【工事内訳フォーム】'];
+    lines.push('業者名: ' + (supplierEl.value.trim() || '（未入力）'));
+    var cards = sitesEl.querySelectorAll('.site-card');
+    cards.forEach(function (c) {
+      var get = function (f) { return c.querySelector('[data-field="' + f + '"]').value.trim(); };
+      lines.push('');
+      lines.push('顧客名: ' + (get('customer') || '（未入力）') + '様');
+      lines.push('税抜金額: ' + (get('amount') || '（未入力）'));
+      if (get('city')) lines.push('市区町村: ' + get('city'));
+      if (get('work')) lines.push('工事内容: ' + get('work'));
+      if (get('date')) lines.push('日付: ' + get('date'));
+    });
+    return lines.join('\n');
+  }
+
+  // 未入力の項目があれば、そのフィールドと分かりやすいメッセージを返す（無ければ null）。
+  // ★ボタンを「押せない（disabled）」にすると理由が伝わらないため、常に押せるようにし、
+  //   足りない項目があればここでその場で知らせる方式にした（2026-09-12修正）。
+  function firstMissing() {
+    if (!supplierEl.value.trim()) {
+      return { el: supplierEl, msg: 'あなたの会社名・お名前を入力してください' };
+    }
+    var cards = sitesEl.querySelectorAll('.site-card');
+    for (var i = 0; i < cards.length; i++) {
+      var c = cards[i];
+      var customerEl = c.querySelector('[data-field="customer"]');
+      var amountEl = c.querySelector('[data-field="amount"]');
+      if (!customerEl.value.trim()) {
+        return { el: customerEl, msg: '現場' + (i + 1) + '：お客様のお名前を入力してください' };
+      }
+      if (!amountEl.value.trim()) {
+        return { el: amountEl, msg: '現場' + (i + 1) + '：金額を入力してください' };
+      }
+    }
+    return null;
+  }
+
+  // 送信系ボタン（メール・LINE・コピー）共通の入り口。未入力があれば知らせて中断し、
+  // 揃っていれば渡された処理（実際に送る・コピーする）を実行する。
+  function withReadyCheck(action) {
+    var missing = firstMissing();
+    if (missing) {
+      toastEl.textContent = '▶ ' + missing.msg;
+      missing.el.focus();
+      missing.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    toastEl.textContent = '';
+    action();
+  }
+
+  var mailLink = document.getElementById('mailBtn');
+  var lineLink = document.getElementById('lineBtn');
+
+  // mailBtn/lineBtnは<a>要素にしてある（本物のリンクとして振る舞わせるため）。
+  // href は入力内容が変わるたびに更新しておき、クリック時はそのまま自然に遷移させる
+  // （JSでwindow.openする方式は、埋め込み画面(iframe)内だとメールアプリ等に
+  //   正しく引き継がれないことがあるため、素の<a>クリックに統一した・2026-09-12）。
+  function updateLinks() {
+    var text = buildText();
+    mailLink.href = 'mailto:?subject=' +
+      encodeURIComponent('工事内訳フォーム（' + (supplierEl.value.trim() || '') + '）') +
+      '&body=' + encodeURIComponent(text);
+    lineLink.href = 'https://line.me/R/msg/text/?' + encodeURIComponent(text);
+  }
+
+  function updatePreview() {
+    previewEl.textContent = buildText();
+    updateLinks();
+  }
+
+  document.getElementById('addSite').addEventListener('click', function () {
+    makeSite();
+    updatePreview();
+  });
+
+  supplierEl.addEventListener('input', updatePreview);
+
+  // 未入力があればリンクの遷移を止めて、その場で知らせる。揃っていれば
+  // preventDefaultを呼ばず、<a href>への通常のリンク遷移をそのまま行わせる。
+  mailLink.addEventListener('click', function (ev) {
+    var missing = firstMissing();
+    if (missing) {
+      ev.preventDefault();
+      toastEl.textContent = '▶ ' + missing.msg;
+      missing.el.focus();
+      missing.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+
+  lineLink.addEventListener('click', function (ev) {
+    var missing = firstMissing();
+    if (missing) {
+      ev.preventDefault();
+      toastEl.textContent = '▶ ' + missing.msg;
+      missing.el.focus();
+      missing.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    withReadyCheck(function () {
+      copyToClipboard(buildText());
+      toastEl.textContent = 'コピーしました。LINEかメールに貼り付けて送ってください。';
+      setTimeout(function () { toastEl.textContent = ''; }, 4000);
+    });
+  });
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  makeSite();
+  updatePreview();
+})();
+</script>
