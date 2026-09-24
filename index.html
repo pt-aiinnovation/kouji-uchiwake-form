@@ -123,6 +123,7 @@
 
   .field { display: flex; flex-direction: column; }
   .field + .field { margin-top: 14px; }
+  .tax-hint { font-size: 12.5px; color: var(--ink-soft); margin: 6px 0 0; }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
   .supplier-card {
@@ -300,7 +301,8 @@
       '<div class="field"><label class="req">お客様のお名前（フルネーム）</label>' +
       '<input type="text" data-field="customer" placeholder="例）山田太郎" autocomplete="off"></div>' +
       '<div class="field"><label class="req">金額（税抜・円）</label>' +
-      '<input type="number" inputmode="numeric" data-field="amount" placeholder="例）116200"></div>' +
+      '<input type="number" inputmode="numeric" data-field="amount" placeholder="例）116200">' +
+      '<p class="tax-hint" data-field="taxHint">税込金額（目安）: —</p></div>' +
       '<div class="row2">' +
       '<div class="field"><label>市区町村（分かれば）</label>' +
       '<input type="text" data-field="city" placeholder="例）弥富市" autocomplete="off"></div>' +
@@ -337,6 +339,13 @@
     });
     card.querySelectorAll('input').forEach(function (inp) {
       inp.addEventListener('input', updatePreview);
+    });
+    var amountInput = card.querySelector('[data-field="amount"]');
+    var taxHintEl = card.querySelector('[data-field="taxHint"]');
+    amountInput.addEventListener('input', function () {
+      var v = parseFloat(amountInput.value);
+      taxHintEl.textContent = '税込金額（目安）: ' +
+        (isFinite(v) && v > 0 ? Math.round(v * 1.1).toLocaleString('ja-JP') + '円' : '—');
     });
     return card;
   }
