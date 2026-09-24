@@ -124,6 +124,9 @@
   .field { display: flex; flex-direction: column; }
   .field + .field { margin-top: 14px; }
   .tax-hint { font-size: 12.5px; color: var(--ink-soft); margin: 6px 0 0; }
+  .tax-toggle { display: flex; gap: 16px; margin-bottom: 8px; font-size: 14px; font-weight: 700; color: var(--ink); }
+  .tax-toggle label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .tax-toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
   .supplier-card {
@@ -286,6 +289,19 @@
   var toastEl = document.getElementById('toast');
   var siteCount = 0;
 
+  // 手書き請求書は税抜・税込のどちらの記載か分からないことが多いため、
+  // 入力者がどちらで入力したか選べるようにし、税抜金額はここで統一計算する
+  // （送信フォーマット・裏側の突合ロジックは税抜金額のみを前提にしているため）。
+  function getTaxMode(card) {
+    var checked = card.querySelector('[data-field="taxmode"]:checked');
+    return checked ? checked.value : 'excl';
+  }
+
+  function computeTaxExcl(amount, mode) {
+    if (!isFinite(amount) || amount <= 0) return null;
+    return mode === 'incl' ? Math.round(amount / 1.1) : Math.round(amount);
+  }
+
   function makeSite(initial, afterEl) {
     siteCount += 1;
     var n = siteCount;
@@ -300,7 +316,11 @@
       '</span></div>' +
       '<div class="field"><label class="req">お客様のお名前（フルネーム）</label>' +
       '<input type="text" data-field="customer" placeholder="例）山田太郎" autocomplete="off"></div>' +
-      '<div class="field"><label class="req">金額（税抜・円）</label>' +
+      '<div class="field"><label class="req">金額（円）</label>' +
+      '<div class="tax-toggle">' +
+      '<label><input type="radio" name="taxmode-' + n + '" data-field="taxmode" value="excl" checked> 税抜で入力</label>' +
+      '<label><input type="radio" name="taxmode-' + n + '" data-field="taxmode" value="incl"> 税込で入力</label>' +
+      '</div>' +
       '<input type="number" inputmode="numeric" data-field="amount" placeholder="例）116200">' +
       '<p class="tax-hint" data-field="taxHint">税込金額（目安）: —</p></div>' +
       '<div class="row2">' +
@@ -342,11 +362,20 @@
     });
     var amountInput = card.querySelector('[data-field="amount"]');
     var taxHintEl = card.querySelector('[data-field="taxHint"]');
-    amountInput.addEventListener('input', function () {
+    var taxRadios = card.querySelectorAll('[data-field="taxmode"]');
+    function refreshTaxHint() {
       var v = parseFloat(amountInput.value);
-      taxHintEl.textContent = '税込金額（目安）: ' +
-        (isFinite(v) && v > 0 ? Math.round(v * 1.1).toLocaleString('ja-JP') + '円' : '—');
-    });
+      if (!isFinite(v) || v <= 0) {
+        taxHintEl.textContent = '税込金額（目安）: —';
+        return;
+      }
+      var mode = getTaxMode(card);
+      taxHintEl.textContent = mode === 'incl'
+        ? '税抜金額（目安）: ' + Math.round(v / 1.1).toLocaleString('ja-JP') + '円'
+        : '税込金額（目安）: ' + Math.round(v * 1.1).toLocaleString('ja-JP') + '円';
+    }
+    amountInput.addEventListener('input', refreshTaxHint);
+    taxRadios.forEach(function (r) { r.addEventListener('change', refreshTaxHint); });
     return card;
   }
 
@@ -363,9 +392,13 @@
     var cards = sitesEl.querySelectorAll('.site-card');
     cards.forEach(function (c) {
       var get = function (f) { return c.querySelector('[data-field="' + f + '"]').value.trim(); };
+      var mode = getTaxMode(c);
+      var amount = parseFloat(get('amount'));
+      var taxExcl = computeTaxExcl(amount, mode);
       lines.push('');
       lines.push('顧客名: ' + (get('customer') || '（未入力）') + '様');
-      lines.push('税抜金額: ' + (get('amount') || '（未入力）'));
+      lines.push('入力金額: ' + (get('amount') || '（未入力）') + '円（' + (mode === 'incl' ? '税込' : '税抜') + 'として入力）');
+      lines.push('税抜金額: ' + (taxExcl !== null ? taxExcl : '（未入力）'));
       if (get('city')) lines.push('市区町村: ' + get('city'));
       if (get('work')) lines.push('工事内容: ' + get('work'));
       if (get('date')) lines.push('日付: ' + get('date'));
