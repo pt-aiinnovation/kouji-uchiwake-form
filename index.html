@@ -223,10 +223,11 @@
     text-decoration: none;
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #1A1200; }
-  .btn-primary:active { background: var(--accent-line); }
-  .btn-navy { background: var(--navy); color: #F5F7FB; }
-  .btn-navy:active { filter: brightness(0.92); }
+  /* メール/LINEはOutlook・LINE本家に合わせた固定色（テーマに依らず変えない） */
+  .btn-mail { background: #0F6CBD; color: #FFFFFF; }
+  .btn-mail:active { background: #0B5A9E; }
+  .btn-line { background: #06C755; color: #FFFFFF; }
+  .btn-line:active { background: #05A648; }
   .btn-secondary { background: var(--surface); color: var(--ink); border: 1.5px solid var(--surface-line); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .hint { font-size: 12.5px; color: var(--ink-soft); text-align: center; margin: 0; }
@@ -269,8 +270,8 @@
 
   <div class="actionbar">
     <p class="toast" id="toast"></p>
-    <a href="#" class="btn btn-primary" id="mailBtn" target="_top">メールで送る</a>
-    <a href="#" class="btn btn-navy" id="lineBtn" target="_blank" rel="noopener">LINEで送る</a>
+    <a href="#" class="btn btn-mail" id="mailBtn" target="_top">メールで送る</a>
+    <a href="#" class="btn btn-line" id="lineBtn" target="_blank" rel="noopener">LINEで送る</a>
     <button type="button" class="btn btn-secondary" id="copyBtn">文章をコピーする</button>
     <p class="hint">送信後は、経理担当者が内容を確認して処理します。</p>
   </div>
