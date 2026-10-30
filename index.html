@@ -127,7 +127,8 @@
   .tax-toggle { display: flex; gap: 16px; margin-bottom: 8px; font-size: 14px; font-weight: 700; color: var(--ink); }
   .tax-toggle label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
   .tax-toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .row2 .field + .field { margin-top: 0; }
 
   .supplier-card {
     background: var(--navy-bg);
@@ -232,6 +233,25 @@
   .btn-mail:active { background: #0B5A9E; }
   .btn-line { background: #06C755; color: #FFFFFF; }
   .btn-line:active { background: #05A648; }
+  .seg { display: flex; gap: 16px; margin-bottom: 8px; font-size: 14px; font-weight: 700; color: var(--ink); }
+  .seg label { display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-size: 14px; color: var(--ink); }
+  .seg input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .range-box { display: flex; flex-direction: column; gap: 12px; }
+  .range-box[hidden], [data-field="singleBox"][hidden], .total-line[hidden], .split-panel[hidden] { display: none; }
+  .total-line { font-size: 14px; font-weight: 700; color: var(--accent-line); margin: 6px 0 0; }
+  .split-panel {
+    background: var(--accent-bg);
+    border: 1.5px solid var(--accent-line);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .split-panel h2 { margin: 0 0 4px; font-size: 16px; font-weight: 900; }
+  .split-panel .sub { margin: 0 0 14px; font-size: 13px; color: var(--ink-soft); line-height: 1.7; }
+  .split-names { display: flex; flex-direction: column; gap: 8px; }
+  .split-result { margin: 12px 0 0; font-size: 14px; font-weight: 700; color: var(--accent-line); min-height: 20px; }
+  .split-btns { display: flex; gap: 8px; margin-top: 14px; }
+  .split-btns .btn { padding: 13px; font-size: 15.5px; }
+  .btn-accent { background: var(--accent); color: #FFFFFF; }
   .btn-secondary { background: var(--surface); color: var(--ink); border: 1.5px solid var(--surface-line); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .hint { font-size: 12.5px; color: var(--ink-soft); text-align: center; margin: 0; }
@@ -253,6 +273,8 @@
     <p class="lede">
       工事ごとに「お客様のお名前」と「金額」を入力し、最後にLINEかメールで
       経理担当者へ送ってください。パソコンは不要です。
+      何日も同じ現場に入った時は「期間でまとめる」、1日に何件も回った時は
+      「日当を現場で分ける」が使えます。
     </p>
   </header>
 
@@ -266,6 +288,35 @@
   <div id="sites" class="sites"></div>
 
   <button type="button" class="add-btn" id="addSite">＋ 現場をもう1件追加</button>
+  <button type="button" class="add-btn" id="openSplit">＋ 1日に何件も回った（日当を現場で分ける）</button>
+
+  <div class="split-panel" id="splitPanel" hidden>
+    <h2>日当を現場で分ける</h2>
+    <p class="sub">1日の日当を、回った現場の数で等分します。お客様のお名前は1人ずつ入れてください
+      （分けたあと、各現場の金額は個別に直せます）。</p>
+    <div class="field">
+      <label class="req">1日の日当（円）</label>
+      <div class="tax-toggle">
+        <label><input type="radio" name="split-tax" id="splitTaxExcl" value="excl" checked> 税抜で入力</label>
+        <label><input type="radio" name="split-tax" id="splitTaxIncl" value="incl"> 税込で入力</label>
+      </div>
+      <input type="number" inputmode="numeric" id="splitTotal" placeholder="例）15000">
+    </div>
+    <div class="field">
+      <label>日付（分かれば）</label>
+      <input type="date" id="splitDate">
+    </div>
+    <div class="field">
+      <label class="req">回った現場のお客様（フルネーム）</label>
+      <div class="split-names" id="splitNames"></div>
+    </div>
+    <button type="button" class="add-btn" id="splitAddName" style="margin-top:10px;padding:10px;">＋ お客様を追加</button>
+    <p class="split-result" id="splitResult"></p>
+    <div class="split-btns">
+      <button type="button" class="btn btn-accent" id="splitCreate">現場に分けて追加</button>
+      <button type="button" class="btn btn-secondary" id="splitCancel">やめる</button>
+    </div>
+  </div>
 
   <div class="preview">
     <h2>送信内容のプレビュー</h2>
@@ -302,6 +353,32 @@
     return mode === 'incl' ? Math.round(amount / 1.1) : Math.round(amount);
   }
 
+  function getDateMode(card) {
+    var checked = card.querySelector('[data-field="datemode"]:checked');
+    return checked ? checked.value : 'single';
+  }
+
+  // 開始日〜終了日の日数（両端を含む）。日付が揃っていない／逆順なら null。
+  function rangeDays(card) {
+    var f = card.querySelector('[data-field="dateFrom"]').value;
+    var t = card.querySelector('[data-field="dateTo"]').value;
+    if (!f || !t) return null;
+    var d = Math.round((Date.parse(t) - Date.parse(f)) / 86400000) + 1;
+    return d >= 1 ? d : null;
+  }
+
+  // この現場の金額まわり。期間モードは「1日あたり×実働日数」を合計にする。
+  // 戻り値 total=入力ベースの合計（税抜/税込は taxmode のまま）、days=期間モード時の日数。
+  function getAmounts(card) {
+    var entered = parseFloat(card.querySelector('[data-field="amount"]').value);
+    if (getDateMode(card) !== 'range') {
+      return { entered: entered, days: null, total: entered };
+    }
+    var days = parseInt(card.querySelector('[data-field="days"]').value, 10);
+    var total = (isFinite(entered) && isFinite(days) && days >= 1) ? entered * days : NaN;
+    return { entered: entered, days: days, total: total };
+  }
+
   function makeSite(initial, afterEl) {
     siteCount += 1;
     var n = siteCount;
@@ -316,12 +393,13 @@
       '</span></div>' +
       '<div class="field"><label class="req">お客様のお名前（フルネーム）</label>' +
       '<input type="text" data-field="customer" placeholder="例）山田太郎" autocomplete="off"></div>' +
-      '<div class="field"><label class="req">金額（円）</label>' +
+      '<div class="field"><label class="req" data-field="amountLabel">金額（円）</label>' +
       '<div class="tax-toggle">' +
       '<label><input type="radio" name="taxmode-' + n + '" data-field="taxmode" value="excl" checked> 税抜で入力</label>' +
       '<label><input type="radio" name="taxmode-' + n + '" data-field="taxmode" value="incl"> 税込で入力</label>' +
       '</div>' +
       '<input type="number" inputmode="numeric" data-field="amount" placeholder="例）116200">' +
+      '<p class="total-line" data-field="totalLine" hidden></p>' +
       '<p class="tax-hint" data-field="taxHint">税込金額（目安）: —</p></div>' +
       '<div class="row2">' +
       '<div class="field"><label>市区町村（分かれば）</label>' +
@@ -329,8 +407,22 @@
       '<div class="field"><label>工事内容（分かれば）</label>' +
       '<input type="text" data-field="work" placeholder="例）外壁塗装" autocomplete="off"></div>' +
       '</div>' +
-      '<div class="field"><label>日付（分かれば）</label>' +
-      '<input type="date" data-field="date"></div>';
+      '<div class="field"><label data-field="dateLabel">日付（分かれば）</label>' +
+      '<div class="seg">' +
+      '<label><input type="radio" name="datemode-' + n + '" data-field="datemode" value="single" checked> 1日だけ</label>' +
+      '<label><input type="radio" name="datemode-' + n + '" data-field="datemode" value="range"> 期間でまとめる</label>' +
+      '</div>' +
+      '<div data-field="singleBox"><input type="date" data-field="date"></div>' +
+      '<div class="range-box" data-field="rangeBox" hidden>' +
+      '<div class="row2">' +
+      '<div class="field"><label class="req">開始日</label><input type="date" data-field="dateFrom"></div>' +
+      '<div class="field"><label class="req">終了日</label><input type="date" data-field="dateTo"></div>' +
+      '</div>' +
+      '<div class="field"><label class="req">実働日数（雨や倉庫の日は減らしてください）</label>' +
+      '<input type="number" inputmode="numeric" min="1" data-field="days" placeholder="例）13"></div>' +
+      '<p class="tax-hint">金額は「1日あたり」を入れると、日数をかけた合計を送ります。<br>' +
+      '途中で別の現場に行った期間をはさむ時は、「複製」してから期間を分けてください。</p>' +
+      '</div></div>';
 
     if (afterEl) {
       sitesEl.insertBefore(card, afterEl.nextSibling);   // nextSiblingがnullでも末尾に入る
@@ -339,7 +431,7 @@
     }
 
     if (initial) {
-      ['customer', 'city', 'work', 'date'].forEach(function (f) {
+      ['customer', 'city', 'work', 'date', 'amount'].forEach(function (f) {
         if (initial[f]) card.querySelector('[data-field="' + f + '"]').value = initial[f];
       });
       // 金額はコピーせず空にする（同じ現場でも日によって金額が違うことが多いため）。
@@ -362,20 +454,60 @@
     });
     var amountInput = card.querySelector('[data-field="amount"]');
     var taxHintEl = card.querySelector('[data-field="taxHint"]');
+    var totalLineEl = card.querySelector('[data-field="totalLine"]');
+    var amountLabelEl = card.querySelector('[data-field="amountLabel"]');
     var taxRadios = card.querySelectorAll('[data-field="taxmode"]');
+    var dateRadios = card.querySelectorAll('[data-field="datemode"]');
+    var daysInput = card.querySelector('[data-field="days"]');
+    var fromInput = card.querySelector('[data-field="dateFrom"]');
+    var toInput = card.querySelector('[data-field="dateTo"]');
+    function yen(v) { return Math.round(v).toLocaleString('ja-JP') + '円'; }
     function refreshTaxHint() {
-      var v = parseFloat(amountInput.value);
+      var range = getDateMode(card) === 'range';
+      var a = getAmounts(card);
+      var mode = getTaxMode(card);
+      var label = mode === 'incl' ? '税込' : '税抜';
+      amountLabelEl.textContent = range ? '1日あたりの金額（円）' : '金額（円）';
+      totalLineEl.hidden = !range;
+      if (range) {
+        totalLineEl.textContent = (isFinite(a.total) && a.total > 0)
+          ? '合計（' + label + '）: ' + yen(a.entered) + ' × ' + a.days + '日 = ' + yen(a.total)
+          : '合計: 金額と実働日数を入れると表示されます';
+      }
+      var v = a.total;
       if (!isFinite(v) || v <= 0) {
-        taxHintEl.textContent = '税込金額（目安）: —';
+        taxHintEl.textContent = mode === 'incl' ? '税抜金額（目安）: —' : '税込金額（目安）: —';
         return;
       }
-      var mode = getTaxMode(card);
       taxHintEl.textContent = mode === 'incl'
-        ? '税抜金額（目安）: ' + Math.round(v / 1.1).toLocaleString('ja-JP') + '円'
-        : '税込金額（目安）: ' + Math.round(v * 1.1).toLocaleString('ja-JP') + '円';
+        ? '税抜金額（目安）: ' + yen(v / 1.1)
+        : '税込金額（目安）: ' + yen(v * 1.1);
+    }
+    function syncDays() {
+      // 実働日数は、期間から自動で入れる。本人が直したあとは触らない。
+      if (card.dataset.daysEdited === '1') return;
+      var d = rangeDays(card);
+      daysInput.value = d === null ? '' : d;
+    }
+    function refreshDateMode() {
+      var range = getDateMode(card) === 'range';
+      card.querySelector('[data-field="singleBox"]').hidden = range;
+      card.querySelector('[data-field="rangeBox"]').hidden = !range;
+      card.querySelector('[data-field="dateLabel"]').textContent = range ? '日付（期間）' : '日付（分かれば）';
+      syncDays();
+      refreshTaxHint();
     }
     amountInput.addEventListener('input', refreshTaxHint);
     taxRadios.forEach(function (r) { r.addEventListener('change', refreshTaxHint); });
+    dateRadios.forEach(function (r) { r.addEventListener('change', function () { refreshDateMode(); updatePreview(); }); });
+    [fromInput, toInput].forEach(function (inp) {
+      inp.addEventListener('input', function () { syncDays(); refreshTaxHint(); updatePreview(); });
+    });
+    daysInput.addEventListener('input', function () {
+      card.dataset.daysEdited = daysInput.value === '' ? '' : '1';
+      refreshTaxHint();
+    });
+    refreshTaxHint();
     return card;
   }
 
@@ -393,15 +525,24 @@
     cards.forEach(function (c) {
       var get = function (f) { return c.querySelector('[data-field="' + f + '"]').value.trim(); };
       var mode = getTaxMode(c);
-      var amount = parseFloat(get('amount'));
-      var taxExcl = computeTaxExcl(amount, mode);
+      var range = getDateMode(c) === 'range';
+      var a = getAmounts(c);
+      var taxExcl = computeTaxExcl(a.total, mode);
+      var basis = (mode === 'incl' ? '税込' : '税抜') + 'として入力' + (range ? '・1日あたり' : '');
       lines.push('');
       lines.push('顧客名: ' + (get('customer') || '（未入力）') + '様');
-      lines.push('入力金額: ' + (get('amount') || '（未入力）') + '円（' + (mode === 'incl' ? '税込' : '税抜') + 'として入力）');
+      lines.push('入力金額: ' + (get('amount') || '（未入力）') + '円（' + basis + '）');
       lines.push('税抜金額: ' + (taxExcl !== null ? taxExcl : '（未入力）'));
       if (get('city')) lines.push('市区町村: ' + get('city'));
       if (get('work')) lines.push('工事内容: ' + get('work'));
-      if (get('date')) lines.push('日付: ' + get('date'));
+      if (range) {
+        if (get('dateFrom') && get('dateTo')) {
+          lines.push('日付: ' + get('dateFrom') + '〜' + get('dateTo') + '（実働' + (get('days') || '?') + '日）');
+          lines.push('備考: 1日あたり' + (get('amount') || '?') + '円 × ' + (get('days') || '?') + '日');
+        }
+      } else if (get('date')) {
+        lines.push('日付: ' + get('date'));
+      }
     });
     return lines.join('\n');
   }
@@ -423,6 +564,16 @@
       }
       if (!amountEl.value.trim()) {
         return { el: amountEl, msg: '現場' + (i + 1) + '：金額を入力してください' };
+      }
+      if (getDateMode(c) === 'range') {
+        var fromEl = c.querySelector('[data-field="dateFrom"]');
+        var toEl = c.querySelector('[data-field="dateTo"]');
+        var daysEl = c.querySelector('[data-field="days"]');
+        if (!fromEl.value) return { el: fromEl, msg: '現場' + (i + 1) + '：期間の開始日を入力してください' };
+        if (!toEl.value) return { el: toEl, msg: '現場' + (i + 1) + '：期間の終了日を入力してください' };
+        if (rangeDays(c) === null) return { el: toEl, msg: '現場' + (i + 1) + '：終了日は開始日と同じか、それより後の日にしてください' };
+        var dn = parseInt(daysEl.value, 10);
+        if (!isFinite(dn) || dn < 1) return { el: daysEl, msg: '現場' + (i + 1) + '：実働日数を入力してください' };
       }
     }
     return null;
@@ -517,6 +668,103 @@
     try { document.execCommand('copy'); } catch (e) {}
     document.body.removeChild(ta);
   }
+
+  // ---- 日当を複数現場で分ける ----
+  // お客様名は「1欄に1人」（突合はフルネームの完全一致のため、複数名を1欄に並べない）。
+  // ここでは日当を人数で等分して、現場カードを人数分つくるだけ。以降は通常の現場カードと同じ。
+  var splitPanel = document.getElementById('splitPanel');
+  var splitNamesEl = document.getElementById('splitNames');
+  var splitTotalEl = document.getElementById('splitTotal');
+  var splitResultEl = document.getElementById('splitResult');
+
+  function splitNameInputs() { return splitNamesEl.querySelectorAll('input'); }
+
+  function addSplitName() {
+    var inp = document.createElement('input');
+    inp.type = 'text';
+    inp.placeholder = '例）山田太郎';
+    inp.autocomplete = 'off';
+    inp.addEventListener('input', refreshSplit);
+    splitNamesEl.appendChild(inp);
+    return inp;
+  }
+
+  // 等分。端数は先頭の現場に寄せる（合計が日当と必ず一致する）。
+  function splitShares(totalExcl, n) {
+    var base = Math.floor(totalExcl / n);
+    var shares = [];
+    for (var i = 0; i < n; i++) shares.push(base);
+    shares[0] += totalExcl - base * n;
+    return shares;
+  }
+
+  function splitNames() {
+    var names = [];
+    splitNameInputs().forEach(function (i) { if (i.value.trim()) names.push(i.value.trim()); });
+    return names;
+  }
+
+  function splitTotalExcl() {
+    var mode = document.getElementById('splitTaxIncl').checked ? 'incl' : 'excl';
+    return computeTaxExcl(parseFloat(splitTotalEl.value), mode);
+  }
+
+  function refreshSplit() {
+    var names = splitNames();
+    var total = splitTotalExcl();
+    if (total === null || names.length < 2) {
+      splitResultEl.textContent = names.length < 2 ? 'お客様を2人以上入れると、分けた金額が表示されます' : '';
+      return;
+    }
+    splitResultEl.textContent = names.length + '現場に分けます（税抜）: ' +
+      splitShares(total, names.length).map(function (v) { return v.toLocaleString('ja-JP') + '円'; }).join(' / ');
+  }
+
+  document.getElementById('openSplit').addEventListener('click', function () {
+    if (!splitNameInputs().length) { addSplitName(); addSplitName(); }
+    splitPanel.hidden = false;
+    splitPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  document.getElementById('splitAddName').addEventListener('click', function () { addSplitName().focus(); });
+  document.getElementById('splitCancel').addEventListener('click', function () { splitPanel.hidden = true; });
+  splitTotalEl.addEventListener('input', refreshSplit);
+  document.getElementById('splitTaxExcl').addEventListener('change', refreshSplit);
+  document.getElementById('splitTaxIncl').addEventListener('change', refreshSplit);
+
+  document.getElementById('splitCreate').addEventListener('click', function () {
+    var names = splitNames();
+    var total = splitTotalExcl();
+    if (total === null) {
+      splitResultEl.textContent = '▶ 1日の日当を入力してください';
+      splitTotalEl.focus();
+      return;
+    }
+    if (names.length < 2) {
+      splitResultEl.textContent = '▶ お客様を2人以上入力してください（1人だけなら「現場を追加」で入力できます）';
+      return;
+    }
+    var date = document.getElementById('splitDate').value;
+    var shares = splitShares(total, names.length);
+    // 何も入れていない空の現場カードが残っていると紛らわしいので、取り除く
+    sitesEl.querySelectorAll('.site-card').forEach(function (c) {
+      var cu = c.querySelector('[data-field="customer"]').value.trim();
+      var am = c.querySelector('[data-field="amount"]').value.trim();
+      if (!cu && !am) c.remove();
+    });
+    names.forEach(function (nm, i) {
+      makeSite({ customer: nm, amount: String(shares[i]), date: date });
+    });
+    renumber();
+    updatePreview();
+    // 次回に備えて入力欄をきれいにして閉じる
+    splitNamesEl.innerHTML = '';
+    splitTotalEl.value = '';
+    document.getElementById('splitDate').value = '';
+    splitResultEl.textContent = '';
+    splitPanel.hidden = true;
+    toastEl.textContent = names.length + '件の現場に分けて追加しました。金額は各現場で直せます。';
+    setTimeout(function () { toastEl.textContent = ''; }, 4000);
+  });
 
   makeSite();
   updatePreview();
