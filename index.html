@@ -262,6 +262,46 @@
     color: var(--accent-line);
     min-height: 18px;
   }
+
+  .view { display: flex; flex-direction: column; gap: 20px; }
+  .view[hidden] { display: none; }
+  .tabbar { display: flex; gap: 8px; }
+  .tab {
+    flex: 1; font-family: inherit; font-size: 15px; font-weight: 700; padding: 11px 8px;
+    border-radius: 10px; border: 1.5px solid var(--surface-line); background: var(--surface);
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .rec-lede { margin: 0; font-size: 13.5px; color: var(--ink-soft); line-height: 1.7; }
+  .rec-nav { display: flex; align-items: center; justify-content: space-between; }
+  .rec-month { font-size: 19px; font-weight: 900; }
+  .rec-arrow {
+    font-family: inherit; font-size: 22px; line-height: 1; width: 46px; height: 42px; border-radius: 10px;
+    border: 1.5px solid var(--surface-line); background: var(--surface); color: var(--ink); cursor: pointer;
+  }
+  .rec-total {
+    display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px;
+    border-radius: 10px; background: var(--surface); border: 1.5px solid var(--surface-line); font-size: 14px; font-weight: 700;
+  }
+  .rec-total strong { font-size: 24px; font-variant-numeric: tabular-nums; }
+  .rec-list { display: flex; flex-direction: column; }
+  .rec-row { display: flex; align-items: flex-start; gap: 10px; padding: 11px 2px; border-bottom: 1px solid var(--surface-line); }
+  .rec-main { flex: 1; min-width: 0; }
+  .rec-line1 { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+  .rec-line2 { font-size: 12.5px; color: var(--ink-soft); }
+  .rec-amt { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rec-btns { display: flex; gap: 6px; margin-top: 6px; }
+  .rec-mini {
+    font-family: inherit; font-size: 12.5px; font-weight: 700; padding: 5px 10px; border-radius: 8px;
+    border: 1.5px solid var(--surface-line); background: var(--surface); color: var(--ink-soft); cursor: pointer;
+  }
+  .rec-empty { text-align: center; color: var(--ink-soft); font-size: 14px; padding: 22px 0; }
+  .rec-actions { display: flex; flex-direction: column; gap: 10px; }
+  .rec-restore { display: flex; flex-direction: column; gap: 8px; }
+  .rec-restore textarea {
+    width: 100%; font-family: inherit; font-size: 15px; padding: 10px; border-radius: 10px;
+    border: 1.5px solid var(--surface-line); background: var(--paper); color: var(--ink);
+  }
 </style>
 </head>
 <body>
@@ -277,6 +317,13 @@
       「日当を現場で分ける」が使えます。
     </p>
   </header>
+
+  <div class="tabbar" role="tablist">
+    <button type="button" class="tab active" id="tabSend" role="tab">送信する</button>
+    <button type="button" class="tab" id="tabRecords" role="tab">今月の記録</button>
+  </div>
+
+  <div id="viewSend" class="view">
 
   <div class="supplier-card">
     <div class="field">
@@ -329,6 +376,33 @@
     <a href="#" class="btn btn-line" id="lineBtn" target="_blank" rel="noopener">LINEで送る</a>
     <button type="button" class="btn btn-secondary" id="copyBtn">文章をコピーする</button>
     <p class="hint">送信後は、経理担当者が内容を確認して処理します。</p>
+  </div>
+
+  </div>
+
+  <div id="viewRecords" class="view" hidden>
+    <p class="rec-lede">送るボタン（メール・LINE・コピー）を押した現場が、自動でここに記録されます。記録はこのスマホの中だけに保存され、外には送られません。</p>
+    <div class="rec-nav">
+      <button type="button" class="rec-arrow" id="recPrev" aria-label="前の月">‹</button>
+      <span class="rec-month" id="recMonth"></span>
+      <button type="button" class="rec-arrow" id="recNext" aria-label="次の月">›</button>
+    </div>
+    <div class="rec-total"><span>税抜合計（<b id="recCount">0</b>件）</span><strong id="recSum">¥0</strong></div>
+    <div id="recList" class="rec-list"></div>
+    <div class="rec-actions">
+      <button type="button" class="btn btn-secondary" id="recBackup">バックアップをコピー</button>
+      <button type="button" class="btn btn-secondary" id="recRestoreOpen">バックアップから戻す</button>
+    </div>
+    <div class="rec-restore" id="recRestore" hidden>
+      <label for="recRestoreText">コピーしておいたバックアップの文章を貼り付けてください</label>
+      <textarea id="recRestoreText" rows="4"></textarea>
+      <div class="split-btns">
+        <button type="button" class="btn btn-accent" id="recRestoreGo">戻す</button>
+        <button type="button" class="btn btn-secondary" id="recRestoreCancel">やめる</button>
+      </div>
+    </div>
+    <p class="toast" id="recToast"></p>
+    <p class="hint">機種変更やブラウザのデータ削除で記録は消えます。時々バックアップをコピーして、メモなどに残しておくと安心です。</p>
   </div>
 </div>
 
@@ -629,6 +703,8 @@
       toastEl.textContent = '▶ ' + missing.msg;
       missing.el.focus();
       missing.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      recordSent();
     }
   });
 
@@ -639,13 +715,17 @@
       toastEl.textContent = '▶ ' + missing.msg;
       missing.el.focus();
       missing.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      recordSent();
     }
   });
 
   document.getElementById('copyBtn').addEventListener('click', function () {
     withReadyCheck(function () {
       copyToClipboard(buildText());
-      toastEl.textContent = 'コピーしました。LINEかメールに貼り付けて送ってください。';
+      var added = recordSent();
+      toastEl.textContent = 'コピーしました。LINEかメールに貼り付けて送ってください。' +
+        (added ? '（「今月の記録」にも追加しました）' : '');
       setTimeout(function () { toastEl.textContent = ''; }, 4000);
     });
   });
@@ -765,6 +845,174 @@
     toastEl.textContent = names.length + '件の現場に分けて追加しました。金額は各現場で直せます。';
     setTimeout(function () { toastEl.textContent = ''; }, 4000);
   });
+
+  // ---- 今月の記録（このスマホの中だけに保存。外には送らない） -------------------
+  // 送るボタン（メール・LINE・コピー）を押した現場を記録する。実際に送れたかは分からないため、
+  // 修正・削除できるようにしてある。同じ内容（業者・お客様・日付・金額が同一）は重複して記録しない。
+  var STORE_KEY = 'kouji_records_v1';
+  var recToastEl = document.getElementById('recToast');
+  var recMonth = monthKey(new Date());
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function monthKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1); }
+  function todayStr() { var d = new Date(); return monthKey(d) + '-' + pad2(d.getDate()); }
+  function yen(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
+
+  function loadRecs() {
+    try {
+      var a = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
+      return Array.isArray(a) ? a : [];
+    } catch (e) { return []; }
+  }
+  function saveRecs(a) {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(a)); return true; } catch (e) { return false; }
+  }
+
+  // 現在の入力内容（送ろうとしている現場）を記録に追加する。追加した件数を返す。
+  function recordSent() {
+    var recs = loadRecs();
+    var added = 0;
+    var supplier = supplierEl.value.trim();
+    sitesEl.querySelectorAll('.site-card').forEach(function (c, i) {
+      var get = function (f) { return c.querySelector('[data-field="' + f + '"]').value.trim(); };
+      var range = getDateMode(c) === 'range';
+      var a = getAmounts(c);
+      var amount = computeTaxExcl(a.total, getTaxMode(c));
+      if (amount === null || !get('customer')) return;
+      var rec = {
+        id: Date.now() + '-' + i,
+        supplier: supplier, customer: get('customer'), city: get('city'), work: get('work'),
+        amount: amount,
+        date: (range ? get('dateFrom') : get('date')) || todayStr(),
+        dateTo: range ? get('dateTo') : '',
+        days: range ? a.days : null,
+        sentAt: new Date().toISOString()
+      };
+      var dup = recs.some(function (r) {
+        return r.supplier === rec.supplier && r.customer === rec.customer && r.date === rec.date &&
+               (r.dateTo || '') === rec.dateTo && r.amount === rec.amount;
+      });
+      if (!dup) { recs.push(rec); added += 1; }
+    });
+    if (added) saveRecs(recs);
+    return added;
+  }
+
+  function recSay(msg) {
+    recToastEl.textContent = msg;
+    setTimeout(function () { recToastEl.textContent = ''; }, 4000);
+  }
+
+  function mkEl(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function shortDate(s) { return s ? s.slice(5).replace('-', '/') : ''; }
+
+  function renderRecords() {
+    var all = loadRecs();
+    var list = all.filter(function (r) { return (r.date || '').slice(0, 7) === recMonth; })
+                  .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    document.getElementById('recMonth').textContent = recMonth.replace('-', '年') + '月';
+    document.getElementById('recCount').textContent = list.length;
+    document.getElementById('recSum').textContent =
+      yen(list.reduce(function (s, r) { return s + (r.amount || 0); }, 0));
+    var box = document.getElementById('recList');
+    box.innerHTML = '';
+    if (!list.length) {
+      box.appendChild(mkEl('p', 'rec-empty', 'この月の記録はまだありません。'));
+      return;
+    }
+    list.forEach(function (r) {
+      var row = mkEl('div', 'rec-row');
+      var main = mkEl('div', 'rec-main');
+      var when = r.dateTo && r.dateTo !== r.date
+        ? shortDate(r.date) + '〜' + shortDate(r.dateTo) + (r.days ? '（' + r.days + '日）' : '')
+        : shortDate(r.date);
+      main.appendChild(mkEl('div', 'rec-line1', when + ' ' + r.customer + '様'));
+      var sub = [r.work, r.city, r.supplier].filter(Boolean).join(' ／ ');
+      if (sub) main.appendChild(mkEl('div', 'rec-line2', sub));
+      var btns = mkEl('div', 'rec-btns');
+      var edit = mkEl('button', 'rec-mini', '金額を直す');
+      edit.type = 'button';
+      edit.addEventListener('click', function () {
+        var v = window.prompt('税抜金額（円）を入力してください', String(r.amount));
+        if (v === null) return;
+        var n = parseInt(String(v).replace(/[^\d]/g, ''), 10);
+        if (!isFinite(n) || n <= 0) { recSay('▶ 金額は1円以上の数字で入力してください'); return; }
+        var recs = loadRecs();
+        recs.forEach(function (x) { if (x.id === r.id) x.amount = n; });
+        saveRecs(recs);
+        renderRecords();
+      });
+      var del = mkEl('button', 'rec-mini', '削除');
+      del.type = 'button';
+      del.addEventListener('click', function () {
+        if (!window.confirm(r.customer + '様の記録を削除します。よろしいですか？')) return;
+        saveRecs(loadRecs().filter(function (x) { return x.id !== r.id; }));
+        renderRecords();
+      });
+      btns.appendChild(edit);
+      btns.appendChild(del);
+      main.appendChild(btns);
+      row.appendChild(main);
+      row.appendChild(mkEl('div', 'rec-amt', yen(r.amount)));
+      box.appendChild(row);
+    });
+  }
+
+  function shiftMonth(delta) {
+    var p = recMonth.split('-');
+    recMonth = monthKey(new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1 + delta, 1));
+    renderRecords();
+  }
+  document.getElementById('recPrev').addEventListener('click', function () { shiftMonth(-1); });
+  document.getElementById('recNext').addEventListener('click', function () { shiftMonth(1); });
+
+  document.getElementById('recBackup').addEventListener('click', function () {
+    copyToClipboard('【工事内訳フォーム バックアップ】' + JSON.stringify({ v: 1, records: loadRecs() }));
+    recSay('バックアップをコピーしました。メモなどに貼り付けて保管してください。');
+  });
+  var restoreBox = document.getElementById('recRestore');
+  document.getElementById('recRestoreOpen').addEventListener('click', function () { restoreBox.hidden = false; });
+  document.getElementById('recRestoreCancel').addEventListener('click', function () { restoreBox.hidden = true; });
+  document.getElementById('recRestoreGo').addEventListener('click', function () {
+    var text = document.getElementById('recRestoreText').value;
+    var i = text.indexOf('{');
+    var data = null;
+    try { data = JSON.parse(text.slice(i)); } catch (e) {}
+    if (i < 0 || !data || !Array.isArray(data.records)) {
+      recSay('▶ バックアップの文章が読み取れません。コピーした文章をそのまま貼り付けてください');
+      return;
+    }
+    var recs = loadRecs();
+    var ids = {};
+    recs.forEach(function (r) { ids[r.id] = true; });
+    var n = 0;
+    data.records.forEach(function (r) {
+      if (r && r.id && r.customer && r.date && r.amount > 0 && !ids[r.id]) { recs.push(r); n += 1; }
+    });
+    saveRecs(recs);
+    document.getElementById('recRestoreText').value = '';
+    restoreBox.hidden = true;
+    renderRecords();
+    recSay(n + '件を戻しました。');
+  });
+
+  function showView(name) {
+    var rec = name === 'records';
+    document.getElementById('viewSend').hidden = rec;
+    document.getElementById('viewRecords').hidden = !rec;
+    document.getElementById('tabSend').classList.toggle('active', !rec);
+    document.getElementById('tabRecords').classList.toggle('active', rec);
+    if (rec) renderRecords();
+    window.scrollTo(0, 0);
+  }
+  document.getElementById('tabSend').addEventListener('click', function () { showView('send'); });
+  document.getElementById('tabRecords').addEventListener('click', function () { showView('records'); });
 
   makeSite();
   updatePreview();
