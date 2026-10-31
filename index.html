@@ -328,7 +328,7 @@
   <div class="supplier-card">
     <div class="field">
       <label class="req" for="supplier">あなたの会社名・お名前</label>
-      <input type="text" id="supplier" placeholder="例）山田塗装" autocomplete="off">
+      <input type="text" id="supplier" placeholder="例）山田塗装" autocomplete="off" list="dlSupplier">
     </div>
   </div>
 
@@ -406,6 +406,11 @@
   </div>
 </div>
 
+<datalist id="dlCustomer"></datalist>
+<datalist id="dlCity"></datalist>
+<datalist id="dlWork"></datalist>
+<datalist id="dlSupplier"></datalist>
+
 <script>
 (function () {
   var sitesEl = document.getElementById('sites');
@@ -466,7 +471,7 @@
       '<button type="button" class="remove-btn" data-action="remove">削除</button>' +
       '</span></div>' +
       '<div class="field"><label class="req">お客様のお名前（フルネーム）</label>' +
-      '<input type="text" data-field="customer" placeholder="例）山田太郎" autocomplete="off"></div>' +
+      '<input type="text" data-field="customer" placeholder="例）山田太郎" autocomplete="off" list="dlCustomer"></div>' +
       '<div class="field"><label class="req" data-field="amountLabel">金額（円）</label>' +
       '<div class="tax-toggle">' +
       '<label><input type="radio" name="taxmode-' + n + '" data-field="taxmode" value="excl" checked> 税抜で入力</label>' +
@@ -477,9 +482,9 @@
       '<p class="tax-hint" data-field="taxHint">税込金額（目安）: —</p></div>' +
       '<div class="row2">' +
       '<div class="field"><label>市区町村（分かれば）</label>' +
-      '<input type="text" data-field="city" placeholder="例）弥富市" autocomplete="off"></div>' +
+      '<input type="text" data-field="city" placeholder="例）弥富市" autocomplete="off" list="dlCity"></div>' +
       '<div class="field"><label>工事内容（分かれば）</label>' +
-      '<input type="text" data-field="work" placeholder="例）外壁塗装" autocomplete="off"></div>' +
+      '<input type="text" data-field="work" placeholder="例）外壁塗装" autocomplete="off" list="dlWork"></div>' +
       '</div>' +
       '<div class="field"><label data-field="dateLabel">日付（分かれば）</label>' +
       '<div class="seg">' +
@@ -763,6 +768,7 @@
     var inp = document.createElement('input');
     inp.type = 'text';
     inp.placeholder = '例）山田太郎';
+    inp.setAttribute('list', 'dlCustomer');
     inp.autocomplete = 'off';
     inp.addEventListener('input', refreshSplit);
     splitNamesEl.appendChild(inp);
@@ -894,7 +900,11 @@
       });
       if (!dup) { recs.push(rec); added += 1; }
     });
-    if (added) saveRecs(recs);
+    if (added) {
+      saveRecs(recs);
+      try { localStorage.setItem(SUPPLIER_KEY, supplier); } catch (e) {}
+      refreshSuggestions();
+    }
     return added;
   }
 
@@ -954,6 +964,7 @@
         if (!window.confirm(r.customer + '様の記録を削除します。よろしいですか？')) return;
         saveRecs(loadRecs().filter(function (x) { return x.id !== r.id; }));
         renderRecords();
+        refreshSuggestions();
       });
       btns.appendChild(edit);
       btns.appendChild(del);
@@ -999,6 +1010,7 @@
     document.getElementById('recRestoreText').value = '';
     restoreBox.hidden = true;
     renderRecords();
+    refreshSuggestions();
     recSay(n + '件を戻しました。');
   });
 
@@ -1013,6 +1025,70 @@
   }
   document.getElementById('tabSend').addEventListener('click', function () { showView('send'); });
   document.getElementById('tabRecords').addEventListener('click', function () { showView('records'); });
+
+  // ---- 入力候補（一度送った内容を、次から候補に出す。このスマホの中の記録だけを使う） ----
+  // 回数の多い順に並べる。お客様名を選ぶ（または入力し終える）と、前回の市区町村・工事内容が
+  // 空欄に入る（すでに入力済みの欄は上書きしない）。
+  var SUPPLIER_KEY = 'kouji_last_supplier_v1';
+  var DEFAULT_WORKS = ['外壁塗装', '屋根塗装', '外壁・屋根塗装', '付帯部塗装', '防水工事'];
+
+  function topValues(recs, field, seed) {
+    var count = {}, last = {};
+    recs.forEach(function (r, i) {
+      var v = (r[field] || '').trim();
+      if (!v) return;
+      count[v] = (count[v] || 0) + 1;
+      last[v] = i;
+    });
+    var arr = Object.keys(count).sort(function (a, b) {
+      return count[b] - count[a] || last[b] - last[a];
+    });
+    (seed || []).forEach(function (v) { if (arr.indexOf(v) < 0) arr.push(v); });
+    return arr;
+  }
+
+  function fillList(id, values) {
+    var dl = document.getElementById(id);
+    dl.innerHTML = '';
+    values.forEach(function (v) {
+      var o = document.createElement('option');
+      o.value = v;
+      dl.appendChild(o);
+    });
+  }
+
+  function refreshSuggestions() {
+    var recs = loadRecs();
+    fillList('dlCustomer', topValues(recs, 'customer'));
+    fillList('dlCity', topValues(recs, 'city'));
+    fillList('dlWork', topValues(recs, 'work', DEFAULT_WORKS));
+    fillList('dlSupplier', topValues(recs, 'supplier'));
+  }
+
+  sitesEl.addEventListener('input', function (ev) {
+    var t = ev.target;
+    if (!t || t.getAttribute('data-field') !== 'customer') return;
+    var name = t.value.trim();
+    if (!name) return;
+    var recs = loadRecs();
+    var prev = null;
+    for (var i = recs.length - 1; i >= 0; i--) {
+      if (recs[i].customer === name) { prev = recs[i]; break; }
+    }
+    if (!prev) return;
+    var card = t.closest('.site-card');
+    ['city', 'work'].forEach(function (f) {
+      var el = card.querySelector('[data-field="' + f + '"]');
+      if (el && !el.value.trim() && prev[f]) el.value = prev[f];
+    });
+    updatePreview();
+  });
+
+  try {
+    var lastSupplier = localStorage.getItem(SUPPLIER_KEY);
+    if (lastSupplier && !supplierEl.value.trim()) supplierEl.value = lastSupplier;
+  } catch (e) {}
+  refreshSuggestions();
 
   makeSite();
   updatePreview();
